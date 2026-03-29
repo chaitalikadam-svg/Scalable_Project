@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Meal Planner</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #222; }
+
+    nav {
+      background: #2d6a4f; color: #fff;
+      padding: 14px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    nav span { font-size: 18px; font-weight: bold; }
+    nav button {
+      margin-left: 8px; padding: 7px 14px;
+      background: rgba(255,255,255,0.15); color: #fff;
+      border: none; border-radius: 6px; cursor: pointer;
+    }
+    nav button:hover { background: rgba(255,255,255,0.25); }
+
+    .welcome {
+      background: #2d6a4f; color: #fff;
+      padding: 28px 24px 32px;
+    }
+    .welcome h1 { font-size: 28px; margin-bottom: 6px; }
+    .welcome p  { font-size: 14px; opacity: 0.8; }
+
+    .main { max-width: 800px; margin: 24px auto; padding: 0 20px; }
+
+    /* BMI */
+    #bmiCard {
+      display: none; background: #fff;
+      border: 1px solid #ddd; border-radius: 10px;
+      padding: 20px; margin-bottom: 24px;
+    }
+    #bmiCard h3 { margin-bottom: 12px; }
+    .bmi-row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .bmi-stat {
+      flex: 1; min-width: 120px;
+      background: #f5f5f5; border-radius: 8px; padding: 12px 16px;
+    }
+    .bmi-stat small { display: block; font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+    .bmi-stat strong { font-size: 22px; color: #2d6a4f; }
+    #bmiSummary { margin-top: 12px; font-size: 13px; color: #555; background: #e8f5e9; padding: 10px 14px; border-radius: 6px; }
+
+    /* Meals */
+    #mealsSection { display: none; }
+    #mealsSection h2 { font-size: 20px; margin-bottom: 16px; }
+    .meals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+    .meal-card {
+      background: #fff; border: 1px solid #ddd;
+      border-radius: 10px; padding: 16px;
+    }
+    .meal-card .type { font-size: 11px; text-transform: uppercase; color: #52b788; font-weight: bold; margin-bottom: 6px; }
+    .meal-card .name { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
+    .meal-card .kcal { font-size: 12px; background: #e8f5e9; color: #2d6a4f; display: inline-block; padding: 2px 8px; border-radius: 20px; }
+
+    /* Modal */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      align-items: center; justify-content: center; z-index: 99;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 12px;
+      padding: 28px; width: 100%; max-width: 440px;
+    }
+    .modal h2 { margin-bottom: 20px; font-size: 20px; }
+    .modal label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; margin-top: 14px; }
+    .modal input, .modal select {
+      width: 100%; padding: 9px 12px;
+      border: 1px solid #ccc; border-radius: 7px;
+      font-size: 14px;
+    }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-footer { margin-top: 22px; display: flex; justify-content: flex-end; gap: 8px; }
+    .btn-save   { padding: 9px 20px; background: #2d6a4f; color: #fff; border: none; border-radius: 7px; cursor: pointer; font-size: 14px; }
+    .btn-cancel { padding: 9px 20px; background: #eee; color: #333; border: none; border-radius: 7px; cursor: pointer; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span> Meal Planner</span>
+  <div>
+    <button onclick="openModal()">Edit Profile</button>
+    <button onclick="getBMI()">Get BMI</button>
+    <button onclick="generateMeal()">Meal Plan</button>
+    <button onclick="runTrend()">Trend Analysis</button>
+    <button onclick="location.href='/'">Logout</button>
+  </div>
+</nav>
+
+<div class="welcome">
+  <h1 id="heroName">Welcome</h1>
+  <p id="heroGoal">No goal set yet</p>
+</div>
+
+<div class="main">
+
+  <div id="bmiCard">
+    <h3>BMI Result</h3>
+    <div class="bmi-row">
+      <div class="bmi-stat"><small>BMI</small><strong id="bmiValue">—</strong></div>
+      <div class="bmi-stat"><small>Category</small><strong id="bmiCat" style="font-size:16px">—</strong></div>
+      <div class="bmi-stat"><small>Goal</small><strong id="bmiGoal" style="font-size:16px">—</strong></div>
+    </div>
+    <div id="bmiSummary"></div>
+  </div>
+
+  <div id="mealsSection">
+    <h2>Today's Meal Plan</h2>
+    <div class="meals-grid" id="mealsGrid"></div>
+  </div>
+
+</div>
+
+<!-- Profile Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>Your Profile</h2>
+    <label>Full Name</label>
+    <input id="name" placeholder="e.g. Alex">
+    <div class="two-col">
+      <div><label>Height (cm)</label><input id="height" type="number" placeholder="175"></div>
+      <div><label>Weight (kg)</label><input id="weight" type="number" placeholder="70"></div>
+    </div>
+    <div class="two-col">
+      <div><label>Age</label><input id="age" type="number" placeholder="25"></div>
+      <div>
+        <label>Gender</label>
+        <select id="gender">
+          <option value="">Select</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save"   onclick="saveProfile()">Save</button>
+    </div>
+    
+    
+  </div>
+</div>
+
+<div class="overlay" id="mealOverlay">
+  <div class="modal">
+    <h2 id="mealTitle"></h2>
+
+    <p><strong>Calories:</strong> <span id="mealCalories"></span></p>
+    <p><strong>Fat:</strong> <span id="mealFat"></span></p>
+    <p><strong>Protein:</strong> <span id="mealProtein"></span></p>
+    <p><strong>Carbs:</strong> <span id="mealCarbs"></span></p>
+
+    <h3>Ingredients</h3>
+    <ul id="mealIngredients"></ul>
+
+    <h3>Steps</h3>
+    <ol id="mealSteps"></ol>
+
+    <button class="btn-cancel" onclick="closeMealDetails()">Close</button>
+  </div>
+</div>
+
+<div id="trendSection" style="display:none; margin-top:30px;">
+  <h2>Weight Trend</h2>
+  <canvas id="trendChart" height="70" width="200"></canvas>
+</div>
+
+<script>
+  const goalLabels = { loss: "Goal: Weight Loss", gain: "Goal: Weight Gain", maintain: "Goal: Maintain Weight" };
+  const mealIcons  = { breakfast: "🌅", lunch: "☀️", snack: "🍎", dinner: "🌙" };
+
+  window.onload = async () => {
+    const res = await fetch("/get-profile");
+    if (res.status === 401) return;
+    const d = await res.json();
+    if (!d.email_id) return;
+    document.getElementById("name").value   = d.name   || "";
+    document.getElementById("height").value = d.height || "";
+    document.getElementById("weight").value = d.weight || "";
+    document.getElementById("age").value    = d.age    || "";
+    document.getElementById("gender").value = d.gender || "";
+    document.getElementById("heroName").textContent = "Welcome, " + (d.name || "Friend");
+    document.getElementById("heroGoal").textContent = goalLabels[d.goal] || "No goal set yet";
+  };
+
+  function openModal()  { document.getElementById("overlay").classList.add("open"); }
+  function closeModal() { document.getElementById("overlay").classList.remove("open"); }
+
+  async function saveProfile() {
+    const data = {
+      name:   document.getElementById("name").value,
+      height: document.getElementById("height").value,
+      weight: document.getElementById("weight").value,
+      age:    document.getElementById("age").value,
+      gender: document.getElementById("gender").value
+    };
+    if (!data.name || !data.height || !data.weight || !data.age || !data.gender)
+      return alert("Please fill all fields");
+    const res = await fetch("/save-profile", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    if (res.ok) { closeModal(); document.getElementById("heroName").textContent = "Welcome, " + data.name; }
+    else alert((await res.json()).detail);
+  }
+  
+  async function getBMI() {
+  const res  = await fetch("/get-bmi", { method: "POST" });
+  const data = await res.json();
+
+  if (!res.ok) return alert(data.detail);
+
+  document.getElementById("bmiValue").textContent  = data.bmi;
+  document.getElementById("bmiCat").textContent    = data.category;
+  document.getElementById("bmiGoal").textContent   = data.goal;
+  document.getElementById("bmiSummary").textContent = data.summary;
+  document.getElementById("bmiCard").style.display  = "block";
+  document.getElementById("heroGoal").textContent   = goalLabels[data.goal] || data.goal;
+
+  // ⭐ GET EXISTING PROFILE
+  const profileRes = await fetch("/get-profile");
+  const profile = await profileRes.json();
+
+  // ⭐ SAVE FULL PROFILE INCLUDING GOAL
+  await fetch("/save-profile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: profile.name,
+      height: profile.height,
+      weight: profile.weight,
+      age: profile.age,
+      gender: profile.gender,
+      goal: data.goal
+    })
+  });
+}
+  
+  async function runTrend() {
+    const res = await fetch("/run-trend-job", { method: "POST" });
+    const data = await res.json();
+    alert("Trend job started. Loading graph...");
+    setTimeout(loadTrendGraph, 5000); // wait for Glue job
+}
+    
+  async function generateMeal() {
+    const profileRes = await fetch("/get-profile");
+    const profile = await profileRes.json();
+    if (!profile.goal) return alert("Please get your BMI first to set your goal.");
+  
+    const res = await fetch("/mealplan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        height: parseFloat(profile.height),
+        weight: parseFloat(profile.weight),
+        age: parseInt(profile.age),
+        gender: profile.gender,
+        goal: profile.goal
+      })
+    });
+  
+    const result = await res.json();
+  
+    const grid = document.getElementById("mealsGrid");
+    grid.innerHTML = "";
+    mealList = []; // reset
+  
+    for (let meal in result.meals) {
+      const m = result.meals[meal];
+  
+      mealList.push(m);
+      const index = mealList.length - 1;
+  
+      grid.innerHTML += `
+        <div class="meal-card" onclick="showMealDetails(${index})">
+          <div class="type">${mealIcons[meal] || "🍽"} ${meal}</div>
+          <div class="name">${m.name || "Not found"}</div>
+          <span class="kcal">${m.calories ? Math.round(m.calories) + " kcal" : "—"}</span>
+        </div>`;
+    }
+  
+    document.getElementById("mealsSection").style.display = "block";
+}
+    
+  function showMealDetails(index) {
+    const meal = mealList[index];
+  
+    document.getElementById("mealTitle").textContent = meal.name || "Meal";
+    document.getElementById("mealCalories").textContent = meal.calories ? Math.round(meal.calories) : "—";
+    document.getElementById("mealFat").textContent = meal.fat ?? "—";
+    document.getElementById("mealProtein").textContent = meal.protein ?? "—";
+  
+    document.getElementById("mealIngredients").innerHTML =
+      meal.ingredients?.length
+        ? meal.ingredients.map(i => `<li>${i}</li>`).join("")
+        : "<li>No ingredients available</li>";
+  
+    document.getElementById("mealSteps").innerHTML =
+      meal.steps?.length
+        ? meal.steps.map(s => `<li>${s}</li>`).join("")
+        : "<li>No steps available</li>";
+  
+    document.getElementById("mealOverlay").classList.add("open");
+}
+  
+  function closeMealDetails() {
+      document.getElementById("mealOverlay").classList.remove("open");
+}
+    
+  async function runTrend() {
+    const res = await fetch("/run-trend-job", { method: "POST" });
+    const data = await res.json();
+  
+    if (!res.ok) {
+      alert(data.detail);
+      return;
+    }
+  
+    alert("Trend job started. Loading graph soon...");
+    setTimeout(loadTrendGraph, 5000);
+}
+  
+  async function loadTrendGraph() {
+  const res = await fetch("/trend-data");
+  const data = await res.json();
+
+  console.log("TREND DATA:", data);  // 🔥 Add this
+
+  const labels = data.map(x => {
+  const d = new Date(x.timestamp);
+  return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  });
+  const values = data.map(x => x.weight);
+
+  const ctx = document.getElementById("trendChart").getContext("2d");
+
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Weight (kg)",
+        data: values,
+        borderColor: "#2d6a4f",
+        backgroundColor: "rgba(45,106,79,0.2)",
+        tension: 0.3
+      }]
+    }
+  });
+
+  document.getElementById("trendSection").style.display = "block";
+}
+  
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sign Up • Meal Planner</title>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    color: #222;
+  }
+
+  /* Top Bar */
+  nav {
+    background: #2d6a4f;
+    color: #fff;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  nav span {
+    font-size: 20px;
+    font-weight: bold;
+  }
+
+  /* Signup Card */
+  .container {
+    max-width: 380px;
+    margin: 80px auto;
+    background: #fff;
+    padding: 32px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+  }
+
+  h2 {
+    text-align: center;
+    margin-bottom: 24px;
+    color: #2d6a4f;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #555;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    margin-bottom: 18px;
+    font-size: 14px;
+  }
+
+  button {
+    width: 100%;
+    padding: 10px;
+    background: #2d6a4f;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background: #245a42;
+  }
+
+  .link {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 14px;
+  }
+
+  .link a {
+    color: #2d6a4f;
+    text-decoration: none;
+    font-weight: bold;
+  }
+</style>
+</head>
+
+<body>
+
+<nav>
+  <span>Meal Planner</span>
+</nav>
+
+<div class="container">
+  <h2>Create Account</h2>
+
+  <label>Email</label>
+  <input id="email" type="email" placeholder="Enter your email">
+
+  <label>Password</label>
+  <input id="password" type="password" placeholder="Enter your password">
+
+  <label>Confirm Password</label>
+  <input id="confirm" type="password" placeholder="Confirm your password">
+
+  <button onclick="signup()">Create Account</button>
+
+  <div class="link">
+    Already have an account? <a href="/">Login</a>
+  </div>
+</div>
+
+<script>
+async function signup() {
+
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const confirm = document.getElementById("confirm").value;
+
+  if (password !== confirm) {
+    alert("Passwords do not match");
+    return;
+  }
+
+  const res = await fetch("/signup", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      email: email,
+      password: password
+    })
+  });
+
+  const result = await res.json();
+
+  if (res.status === 200) {
+    alert("Signup successful");
+    window.location.href = "/";   // go to login
+  } else {
+    alert(result.detail);
+  }
+}
+</script>
+
+</body>
+</html>
