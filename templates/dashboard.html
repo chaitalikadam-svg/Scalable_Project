@@ -80,6 +80,15 @@
     .modal-footer { margin-top: 22px; display: flex; justify-content: flex-end; gap: 8px; }
     .btn-save   { padding: 9px 20px; background: #2d6a4f; color: #fff; border: none; border-radius: 7px; cursor: pointer; font-size: 14px; }
     .btn-cancel { padding: 9px 20px; background: #eee; color: #333; border: none; border-radius: 7px; cursor: pointer; font-size: 14px; }
+    
+    
+    /* Fitness Cards */
+    .fitness-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 10px; }
+    .fitness-card { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 16px; border-left: 4px solid #2d6a4f; }
+    .fitness-card h4 { margin-bottom: 12px; color: #2d6a4f; font-size: 16px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .exercise-item { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: #444; }
+    .exercise-item strong { background: #e8f5e9; padding: 2px 6px; border-radius: 4px; color: #2d6a4f; font-size: 12px; }
+    .nutrition-alert { background: #e8f5e9; padding: 14px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; color: #2d6a4f; border-left: 4px solid #52b788; }
   </style>
 </head>
 <body>
@@ -90,6 +99,7 @@
     <button onclick="openModal()">Edit Profile</button>
     <button onclick="getBMI()">Get BMI</button>
     <button onclick="generateMeal()">Meal Plan</button>
+    <button onclick="openFitnessModal()">Fitness Plan</button>
     <button onclick="runTrend()">Trend Analysis</button>
     <button onclick="location.href='/'">Logout</button>
   </div>
@@ -116,7 +126,12 @@
     <h2>Today's Meal Plan</h2>
     <div class="meals-grid" id="mealsGrid"></div>
   </div>
-
+  
+  <div id="fitnessSection" style="display: none; background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 20px; margin-bottom: 24px;">
+    <h2 style="font-size: 20px; margin-bottom: 16px;">Your Fitness Plan</h2>
+    <div id="fitnessResults" style="background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; color: #333;"></div>
+  </div>
+  
 </div>
 
 <!-- Profile Modal -->
@@ -168,6 +183,34 @@
   </div>
 </div>
 
+<div class="overlay" id="fitnessOverlay">
+  <div class="modal">
+    <h2>Fitness Plan Settings</h2>
+    
+    <label>Fitness Goal</label>
+    <select id="fitGoal">
+      <option value="muscle_gain">Muscle Gain</option>
+      <option value="weight_loss">Weight Loss</option>
+      <option value="endurance">Endurance</option>
+    </select>
+
+    <label>Available Days per Week</label>
+    <input id="fitDays" type="number" min="1" max="7" value="5">
+
+    <label>Fitness Level</label>
+    <select id="fitLevel">
+      <option value="beginner">Beginner</option>
+      <option value="intermediate" selected>Intermediate</option>
+      <option value="advanced">Advanced</option>
+    </select>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeFitnessModal()">Cancel</button>
+      <button class="btn-save" onclick="fetchFitnessPlan()">Get Plan</button>
+    </div>
+  </div>
+</div>
+
 <div id="trendSection" style="display:none; margin-top:30px;">
   <h2>Weight Trend</h2>
   <canvas id="trendChart" height="70" width="200"></canvas>
@@ -193,7 +236,10 @@
 
   function openModal()  { document.getElementById("overlay").classList.add("open"); }
   function closeModal() { document.getElementById("overlay").classList.remove("open"); }
-
+  
+  function openFitnessModal() { document.getElementById("fitnessOverlay").classList.add("open"); }
+  function closeFitnessModal() { document.getElementById("fitnessOverlay").classList.remove("open"); }
+  
   async function saveProfile() {
     const data = {
       name:   document.getElementById("name").value,
@@ -243,8 +289,6 @@
     })
   });
 }
-  
-    
   async function generateMeal() {
     const profileRes = await fetch("/get-profile");
     const profile = await profileRes.json();
@@ -322,6 +366,75 @@
     alert("Trend job started. Loading graph soon...");
     setTimeout(loadTrendGraph, 5000);
 }
+  
+  async function fetchFitnessPlan() {
+    const goal = document.getElementById("fitGoal").value;
+    const days = parseInt(document.getElementById("fitDays").value);
+    const level = document.getElementById("fitLevel").value;
+
+    closeFitnessModal();
+    const fitSection = document.getElementById("fitnessSection");
+    const fitResults = document.getElementById("fitnessResults");
+    
+    fitSection.style.display = "block";
+    fitResults.innerHTML = "<p><em>Loading fitness plan... 💪</em></p>";
+
+    try {
+      const res = await fetch("/fitness-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          goal: goal,
+          available_days: days,
+          fitness_level: level
+        })
+      });
+
+      if (!res.ok) throw new Error("API responded with an error.");
+      const data = await res.json();
+
+      // --- NEW HTML RENDERING LOGIC ---
+      let html = "";
+
+      // 1. Add the Nutrition Tip at the top
+      if (data.nutrition) {
+        html += `<div class="nutrition-alert"><strong>🍎 Nutrition Advice:</strong> ${data.nutrition}</div>`;
+      }
+
+      // 2. Start the grid for the days
+      html += `<div class="fitness-grid">`;
+      
+      // 3. Loop through the week_plan object dynamically
+      if (data.week_plan) {
+        for (const [day, exercises] of Object.entries(data.week_plan)) {
+          html += `<div class="fitness-card">`;
+          html += `<h4>🗓️ ${day}</h4>`;
+          
+          // Loop through the exercises for that specific day
+          exercises.forEach(ex => {
+             html += `
+               <div class="exercise-item">
+                 <span>${ex.exercise}</span>
+                 <strong>${ex.sets} sets x ${ex.reps}</strong>
+               </div>`;
+          });
+          
+          html += `</div>`; // Close fitness-card
+        }
+      } else {
+        html += `<p>No workouts found for this plan.</p>`;
+      }
+      
+      html += `</div>`; // Close fitness-grid
+      
+      // 4. Inject the beautiful HTML into the page
+      fitResults.innerHTML = html;
+      
+    } catch (error) {
+      fitResults.innerHTML = `<p style="color:red;">Error fetching fitness plan: ${error.message}</p>`;
+    }
+  }
+  
   
   async function loadTrendGraph() {
   const res = await fetch("/trend-data");

@@ -48,6 +48,12 @@ class LoginInput(BaseModel):
 class SignupInput(BaseModel):
     email: str
     password: str
+
+class FitnessInput(BaseModel):
+    goal: str
+    available_days: int
+    fitness_level: str
+
 # -------------------------------
 # Calorie Calculation
 # -------------------------------
@@ -334,7 +340,7 @@ def get_bmi(request: Request):
     "summary": bmi_data["summary"],  
     "goal": goal
 }
-    
+
 @app.get("/trend-data")
 def trend_data(request: Request, current_user: dict = Depends(get_current_user)):
     s3 = boto3.client("s3")
@@ -375,3 +381,31 @@ def run_trend_job(request: Request, current_user: dict = Depends(get_current_use
         return {"message": "Trend job started", "runId": response["JobRunId"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+        
+@app.post("/fitness-plan")
+def get_fitness_plan(fit_input: FitnessInput, request: Request):
+    # 1. Check if user is logged in
+    email = request.session.get("user")
+    if not email:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    # 2. Your friend's external API
+    api_url = "https://nwjiehffn5.execute-api.us-east-1.amazonaws.com/fitapi"
+
+    # 3. Format the data for their API
+    payload = {
+        "goal": fit_input.goal,
+        "available_days": fit_input.available_days,
+        "fitness_level": fit_input.fitness_level
+    }
+
+    try:
+        # 4. Make the server-to-server call
+        response = requests.post(api_url, json=payload, timeout=10)
+        response.raise_for_status()
+        
+        # 5. Send the result back to your frontend
+        return response.json()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fitness API failed: {str(e)}")
