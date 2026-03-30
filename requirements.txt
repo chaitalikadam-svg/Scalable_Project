@@ -2,7 +2,6 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.12.1
 attrs==20.3.0
-aws-cfn-bootstrap==2.0
 awscli==2.33.15
 awscrt==0.31.1
 awsebcli==3.27.1
