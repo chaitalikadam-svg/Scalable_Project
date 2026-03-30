@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse
 from starlette.middleware.sessions import SessionMiddleware
 import requests
 from datetime import datetime
+from fastapi import FastAPI, Request, Depends
 
 app = FastAPI(title="Meal Planner API")
 app.add_middleware(
@@ -90,7 +91,13 @@ def get_bmi_from_api(height, weight):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"BMI API failed: {str(e)}")
 
+def get_current_user(request: Request):
+    email = request.session.get("user")
 
+    if not email:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    return {"email_id": email}
 # -------------------------------
 # MAIN API
 # -------------------------------
@@ -329,27 +336,42 @@ def get_bmi(request: Request):
 }
     
 @app.get("/trend-data")
-def trend_data(request: Request):
+def trend_data(request: Request, current_user: dict = Depends(get_current_user)):
     s3 = boto3.client("s3")
-
     bucket = "mealplanner-trends"
-    prefix = "weight_trends/"
 
-    objs = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-    latest = sorted(objs["Contents"], key=lambda x: x["LastModified"])[-1]["Key"]
+    prefix = f"weight_trends/{current_user['email_id']}/"
 
-    file = s3.get_object(Bucket=bucket, Key=latest)
-    content = file["Body"].read().decode("utf-8")
+    # List only this user's trend files
+    resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
 
-    data = [json.loads(line) for line in content.splitlines()]
-    return data
+    if "Contents" not in resp:
+        return []
+
+    records = []
+
+    # Read all JSON files for this user
+    for obj in resp["Contents"]:
+        file = s3.get_object(Bucket=bucket, Key=obj["Key"])
+        content = file["Body"].read().decode("utf-8")
+
+        for line in content.splitlines():
+            records.append(json.loads(line))
+
+    # Sort by timestamp
+    records = sorted(records, key=lambda x: x["timestamp"])
+
+    return records
     
 @app.post("/run-trend-job")
-def run_trend_job(request: Request):
+def run_trend_job(request: Request, current_user: dict = Depends(get_current_user)):
     glue = boto3.client("glue", region_name="us-east-1")
 
     try:
-        response = glue.start_job_run(JobName="weighttrend")
+        response = glue.start_job_run(
+            JobName="weighttrend",
+            Arguments={"--USER_EMAIL": current_user["email_id"]}
+        )
         return {"message": "Trend job started", "runId": response["JobRunId"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

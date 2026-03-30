@@ -244,12 +244,6 @@
   });
 }
   
-  async function runTrend() {
-    const res = await fetch("/run-trend-job", { method: "POST" });
-    const data = await res.json();
-    alert("Trend job started. Loading graph...");
-    setTimeout(loadTrendGraph, 5000); // wait for Glue job
-}
     
   async function generateMeal() {
     const profileRes = await fetch("/get-profile");
