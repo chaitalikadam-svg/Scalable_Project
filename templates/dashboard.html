@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Meal Planner</title>
+  <title>MealFit</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -94,9 +94,9 @@
 <body>
 
 <nav>
-  <span> Meal Planner</span>
+  <span> MealFit</span>
   <div>
-    <button onclick="openModal()">Edit Profile</button>
+    <button onclick="openModal()">Profile</button>
     <button onclick="getBMI()">Get BMI</button>
     <button onclick="generateMeal()">Meal Plan</button>
     <button onclick="openFitnessModal()">Fitness Plan</button>
@@ -171,7 +171,6 @@
     <p><strong>Calories:</strong> <span id="mealCalories"></span></p>
     <p><strong>Fat:</strong> <span id="mealFat"></span></p>
     <p><strong>Protein:</strong> <span id="mealProtein"></span></p>
-    <p><strong>Carbs:</strong> <span id="mealCarbs"></span></p>
 
     <h3>Ingredients</h3>
     <ul id="mealIngredients"></ul>
@@ -218,7 +217,12 @@
 
 <script>
   const goalLabels = { loss: "Goal: Weight Loss", gain: "Goal: Weight Gain", maintain: "Goal: Maintain Weight" };
-  const mealIcons  = { breakfast: "🌅", lunch: "☀️", snack: "🍎", dinner: "🌙" };
+  const mealIcons = {
+  breakfast: "",
+  lunch: "",
+  snack: "",
+  dinner: ""
+  };
 
   window.onload = async () => {
     const res = await fetch("/get-profile");
@@ -271,11 +275,11 @@
   document.getElementById("bmiCard").style.display  = "block";
   document.getElementById("heroGoal").textContent   = goalLabels[data.goal] || data.goal;
 
-  // ⭐ GET EXISTING PROFILE
+
   const profileRes = await fetch("/get-profile");
   const profile = await profileRes.json();
 
-  // ⭐ SAVE FULL PROFILE INCLUDING GOAL
+
   await fetch("/save-profile", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -377,7 +381,7 @@
     const fitResults = document.getElementById("fitnessResults");
     
     fitSection.style.display = "block";
-    fitResults.innerHTML = "<p><em>Loading fitness plan... 💪</em></p>";
+    fitResults.innerHTML = "<p><em>Loading fitness plan... </em></p>";
 
     try {
       const res = await fetch("/fitness-plan", {
@@ -398,7 +402,7 @@
 
       // 1. Add the Nutrition Tip at the top
       if (data.nutrition) {
-        html += `<div class="nutrition-alert"><strong>🍎 Nutrition Advice:</strong> ${data.nutrition}</div>`;
+        html += `<div class="nutrition-alert"><strong> Nutrition Advice:</strong> ${data.nutrition}</div>`;
       }
 
       // 2. Start the grid for the days
@@ -408,7 +412,7 @@
       if (data.week_plan) {
         for (const [day, exercises] of Object.entries(data.week_plan)) {
           html += `<div class="fitness-card">`;
-          html += `<h4>🗓️ ${day}</h4>`;
+          html += `<h4>️ ${day}</h4>`;
           
           // Loop through the exercises for that specific day
           exercises.forEach(ex => {
@@ -435,13 +439,11 @@
     }
   }
   
-  
   async function loadTrendGraph() {
   const res = await fetch("/trend-data");
   const data = await res.json();
 
-  console.log("TREND DATA:", data);  // 🔥 Add this
-
+  console.log("TREND DATA:", data);  
   const labels = data.map(x => {
   const d = new Date(x.timestamp);
   return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
