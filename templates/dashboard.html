@@ -30,7 +30,7 @@
 
     .main { max-width: 800px; margin: 24px auto; padding: 0 20px; }
 
-    /* BMI */
+    /* BMI display */
     #bmiCard {
       display: none; background: #fff;
       border: 1px solid #ddd; border-radius: 10px;
@@ -397,24 +397,20 @@
       if (!res.ok) throw new Error("API responded with an error.");
       const data = await res.json();
 
-      // --- NEW HTML RENDERING LOGIC ---
       let html = "";
 
-      // 1. Add the Nutrition Tip at the top
       if (data.nutrition) {
         html += `<div class="nutrition-alert"><strong> Nutrition Advice:</strong> ${data.nutrition}</div>`;
       }
 
-      // 2. Start the grid for the days
       html += `<div class="fitness-grid">`;
-      
-      // 3. Loop through the week_plan object dynamically
+
       if (data.week_plan) {
         for (const [day, exercises] of Object.entries(data.week_plan)) {
           html += `<div class="fitness-card">`;
           html += `<h4>️ ${day}</h4>`;
           
-          // Loop through the exercises for that specific day
+    
           exercises.forEach(ex => {
              html += `
                <div class="exercise-item">
@@ -423,15 +419,15 @@
                </div>`;
           });
           
-          html += `</div>`; // Close fitness-card
+          html += `</div>`; 
         }
       } else {
         html += `<p>No workouts found for this plan.</p>`;
       }
       
-      html += `</div>`; // Close fitness-grid
+      html += `</div>`; 
       
-      // 4. Inject the beautiful HTML into the page
+      
       fitResults.innerHTML = html;
       
     } catch (error) {

@@ -18,21 +18,23 @@ import requests
 from datetime import datetime
 from fastapi import FastAPI, Request, Depends
 
+#Application Name
 app = FastAPI(title="Meal Planner API")
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SECRET_KEY")
 )
 
-# DynamoDB
+# DynamoDB for user
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 users_table = dynamodb.Table("user")
 
+# DynamoDB for receipe
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 table = dynamodb.Table("meal")
 
 # -------------------------------
-# Input Model
+#  Model
 # -------------------------------
 class UserInput(BaseModel):
     height: float
@@ -55,7 +57,7 @@ class FitnessInput(BaseModel):
     fitness_level: str
 
 # -------------------------------
-# Calorie Calculation
+# Public API to check BMI
 # -------------------------------
 
 def get_bmi_from_api(height, weight):
@@ -83,7 +85,7 @@ def get_bmi_from_api(height, weight):
         
         print("FULL API RESPONSE:", data)
 
-        # 🔥 adapt response (important)
+  
         bmi = float(data.get("data", {}).get("bmi", 0))
         category = data.get("data", {}).get("risk", "unknown")
         summary = data.get("data", {}).get("summary", "unknown")
@@ -104,8 +106,9 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Not logged in")
 
     return {"email_id": email}
+    
 # -------------------------------
-# MAIN API
+# ROUTES
 # -------------------------------
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
@@ -124,9 +127,9 @@ def signup_page(request: Request):
 def signup(data: SignupInput):
 
     dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
-    users_table = dynamodb.Table("user")   # ✅ new table
+    users_table = dynamodb.Table("user")  
 
-    # ✅ direct lookup (no scan)
+
     response = users_table.get_item(
         Key={"email_id": data.email}
     )
@@ -142,7 +145,7 @@ def signup(data: SignupInput):
 
     users_table.put_item(
         Item={
-            "email_id": data.email,   # ✅ only key needed
+            "email_id": data.email,  
             "password": hashed_password
         }
     )
@@ -170,7 +173,7 @@ def login(data: LoginInput, request: Request):
     ):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # ✅ store session
+
     request.session["user"] = data.email
 
     return {"message": "Login successful"}
@@ -182,7 +185,6 @@ def dashboard(request: Request):
 @app.post("/mealplan")
 def get_meal_plan(user: UserInput):
 
-    # Convert Pydantic model to dict
     payload = {
         "height": user.height,
         "weight": user.weight,
@@ -191,12 +193,11 @@ def get_meal_plan(user: UserInput):
         "goal": user.goal
     }
 
-    # Call your API Gateway endpoint
+    # Generated API Gateway endpoint 
     api_url = "https://z67upt1czc.execute-api.us-east-1.amazonaws.com/mealplan"
 
     response = requests.post(api_url, json=payload)
 
-    # Raise error if API Gateway fails
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail="Meal API failed")
 
@@ -222,7 +223,7 @@ def get_profile(request: Request):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Convert Decimal to float for JSON serialization
+    # Convert Decimal to float
     return {
         "email_id": user.get("email_id"),
         "name": user.get("name", ""),
@@ -243,10 +244,8 @@ def save_profile(request: Request, data: dict):
     if not email:
         raise HTTPException(status_code=401, detail="Not logged in")
 
-    # Timestamp for history entries
     timestamp = datetime.utcnow().isoformat()
 
-    # Prepare history items
     height_item = {
         "value": Decimal(str(data["height"])),
         "timestamp": timestamp
@@ -260,7 +259,7 @@ def save_profile(request: Request, data: dict):
         "timestamp": timestamp
     }
 
-    # Update current values + append history
+  
     users_table.update_item(
         Key={"email_id": email},
         UpdateExpression="""
@@ -319,7 +318,7 @@ def get_bmi(request: Request):
 
     bmi = bmi_data["bmi"]
 
-    # 🔥 goal logic
+
     if bmi < 18.5:
         goal = "gain"
     elif bmi < 25:
@@ -327,7 +326,6 @@ def get_bmi(request: Request):
     else:
         goal = "loss"
 
-    # 🔥 update DB
     users_table.update_item(
         Key={"email_id": email},
         UpdateExpression="SET goal = :g",
@@ -348,7 +346,7 @@ def trend_data(request: Request, current_user: dict = Depends(get_current_user))
 
     prefix = f"weight_trends/{current_user['email_id']}/"
 
-    # List only this user's trend files
+
     resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
 
     if "Contents" not in resp:
@@ -356,7 +354,7 @@ def trend_data(request: Request, current_user: dict = Depends(get_current_user))
 
     records = []
 
-    # Read all JSON files for this user
+
     for obj in resp["Contents"]:
         file = s3.get_object(Bucket=bucket, Key=obj["Key"])
         content = file["Body"].read().decode("utf-8")
@@ -364,7 +362,7 @@ def trend_data(request: Request, current_user: dict = Depends(get_current_user))
         for line in content.splitlines():
             records.append(json.loads(line))
 
-    # Sort by timestamp
+
     records = sorted(records, key=lambda x: x["timestamp"])
 
     return records
@@ -384,15 +382,15 @@ def run_trend_job(request: Request, current_user: dict = Depends(get_current_use
         
 @app.post("/fitness-plan")
 def get_fitness_plan(fit_input: FitnessInput, request: Request):
-    # 1. Check if user is logged in
+
     email = request.session.get("user")
     if not email:
         raise HTTPException(status_code=401, detail="Not logged in")
 
-    # 2. Your friend's external API
+    # External API
     api_url = "https://nwjiehffn5.execute-api.us-east-1.amazonaws.com/fitapi"
 
-    # 3. Format the data for their API
+
     payload = {
         "goal": fit_input.goal,
         "available_days": fit_input.available_days,
@@ -400,11 +398,10 @@ def get_fitness_plan(fit_input: FitnessInput, request: Request):
     }
 
     try:
-        # 4. Make the server-to-server call
+
         response = requests.post(api_url, json=payload, timeout=10)
         response.raise_for_status()
-        
-        # 5. Send the result back to your frontend
+
         return response.json()
 
     except Exception as e:
