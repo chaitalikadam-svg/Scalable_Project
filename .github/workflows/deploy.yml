@@ -37,7 +37,7 @@ jobs:
 
           eb init ${{ secrets.EB_APP_NAME }} \
             --region ${{ secrets.AWS_REGION }} \
-            --platform "Python 3.9 running on 64bit Amazon Linux 2023"
+            --platform "Python 3.12 running on 64bit Amazon Linux 2023/4.12.0"
 
           eb deploy ${{ secrets.EB_ENV_NAME }} \
             --label "deploy-${{ github.run_id }}" \
