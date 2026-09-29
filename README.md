@@ -129,10 +129,6 @@ Response (abridged):
 }
 ```
 
-**Endpoints (as deployed for the project):**
-
-- `https://z67upt1czc.execute-api.us-east-1.amazonaws.com/mealplan`
-- `https://nwjiehffn5.execute-api.us-east-1.amazonaws.com/fitapi`
 
 ### External BMI API
 
